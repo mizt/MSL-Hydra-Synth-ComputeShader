@@ -4,7 +4,7 @@ Please see more about hydra-synth.
 
  [ojack](https://github.com/ojack) / [hydra-synth](https://github.com/ojack/hydra-synth) 
 
-##### Note:
+#### Note:
 
 The number of output buffers that can be used is 1.
 
