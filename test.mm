@@ -17,7 +17,7 @@ int main(int argc, const char * argv[]) {
         
         HydraComputeShader *hydra = new HydraComputeShader(w,h,@"hydra.json");
                 
-        stb_image::stbi_write_png("test.png",w,h,4,(void const *)hydra->exec(),w<<2);
+        stb_image::stbi_write_png("test.png",w,h,4,(void const *)hydra->exec(0),w<<2);
         
         delete hydra;
     }

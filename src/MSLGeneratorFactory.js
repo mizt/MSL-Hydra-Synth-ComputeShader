@@ -37,7 +37,7 @@ const compositionFunctions = {
 function generateGlsl (inputs) {
   var str = ''
   inputs.forEach((input) => {
-    str += ', ' + input.name
+    str += ',' + input.name
   })
   return str
 }
@@ -183,7 +183,7 @@ const GeneratorFactory = function (defaultOutput) {
         // composition function to be executed when all transforms have been added
         // c0 and c1 are two inputs.. (explain more)
           var f = (c0) => (c1) => {
-            var glslString = `${method}(${c0}, ${c1}`
+            var glslString = `${method}(${c0},${c1}`
             glslString += generateGlsl(inputs.slice(1))
             glslString += ')'
             return glslString
@@ -258,14 +258,14 @@ ${pass.uniforms.map((uniform) => {
           return '';
         }
         else {
-          return `  device float *${uniform.name}[[id(${uniform.name.split("_")[1]})]];`
+          return `  device float *${uniform.name}[[id(${uniform.name.split("_")[1]})]];
+`
         }
     }).join('')+'};'}
     
 ${Object.values(glslTransforms).map((transform) => {
     return `${transform.glsl}`
   }).join('')}
-
 kernel void processimage(
     texture2d<float,access::write> out[[texture(0)]],
     texture2d<float,access::sample> o0[[texture(1)]],
@@ -297,7 +297,10 @@ kernel void processimage(
   float ${uniform.name} = args.${uniform.name}[0];`
           }
         }).join('')}
-  out.write(${pass.transform('st')}, gid);
+    
+  out.write(
+    ${pass.transform('st')}
+  ,gid);
 }
 #pragma clang diagnostic pop`
  
@@ -327,8 +330,6 @@ Generator.prototype.glsl = function() {
   })
   return passes
 }
-
-
 
 Generator.prototype.out = function () {
 //  console.log('UNIFORMS', this.uniforms, output)
