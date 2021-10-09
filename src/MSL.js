@@ -12,8 +12,24 @@ function stringifyWithFunctions(object) {
 	});
 };
 
+
+for(let k=0; k<4; k++) {
+    global["o"+k] = {
+        name:"o"+k,
+        uniforms:{},
+        getTexture:function() {},
+        renderPasses:function(glsl) {
+            require("fs").writeFileSync(FILENAME+".json",'{\n\t"version":'+VERSION.toFixed(1)+',\n\t"metallib":"./hydra.metallib",\n\t"uniforms":'+stringifyWithFunctions(glsl[0].uniforms)+'\n}');
+            require("fs").writeFileSync(FILENAME+".metal",glsl[0].frag);
+            if(BUILD) {
+                require("child_process").execSync("xcrun -sdk "+OS+" metal -c "+FILENAME+".metal -o "+FILENAME+".air; xcrun -sdk "+OS+" metallib "+FILENAME+".air -o "+FILENAME+".metallib");
+            }
+        }
+    };
+}
+/*
 global["o0"] = {
-	name:"args.o0",
+	name:"o0",
 	uniforms:{},
 	getTexture:function() {},
 	renderPasses:function(glsl) {			
@@ -24,10 +40,10 @@ global["o0"] = {
 		}
 	}
 };
-	
+*/
 for(let k=0; k<4; k++) {
 	global["s"+k] = {
-		name:"args.s"+k,
+		name:"s"+k,
 		uniforms:{},
 		getTexture:function() {},
 	};

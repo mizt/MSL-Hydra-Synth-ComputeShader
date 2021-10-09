@@ -338,14 +338,14 @@ Generator.prototype.out = function (_output) {
   
   var tmp = this.glsl(output);
   
-  delete tmp[0].uniforms["args.o0"];
-  delete tmp[0].uniforms["args.o1"];
-  delete tmp[0].uniforms["args.o2"];
-  delete tmp[0].uniforms["args.o3"];
-  delete tmp[0].uniforms["args.s0"];
-  delete tmp[0].uniforms["args.s1"];
-  delete tmp[0].uniforms["args.s2"];
-  delete tmp[0].uniforms["args.s3"];
+  delete tmp[0].uniforms["o0"];
+  delete tmp[0].uniforms["o1"];
+  delete tmp[0].uniforms["o2"];
+  delete tmp[0].uniforms["o3"];
+  delete tmp[0].uniforms["s0"];
+  delete tmp[0].uniforms["s1"];
+  delete tmp[0].uniforms["s2"];
+  delete tmp[0].uniforms["s3"];
   delete tmp[0].uniforms.time;
   delete tmp[0].uniforms.resolution;
   
