@@ -5,29 +5,13 @@ const VERSION = 3.0;
 
 slider=(value,min,max)=>"slider("+value+","+min+","+max+")";
 
-function stringifyWithFunctions(object) {
+const stringifyWithFunctions = function(object) {
 	return JSON.stringify(object,(k,v) => {
 		if(typeof(v)==="function") return `(${v})`;
 		return v;
 	});
 };
 
-
-for(let k=0; k<4; k++) {
-    global["o"+k] = {
-        name:"o"+k,
-        uniforms:{},
-        getTexture:function() {},
-        renderPasses:function(glsl) {
-            require("fs").writeFileSync(FILENAME+".json",'{\n\t"version":'+VERSION.toFixed(1)+',\n\t"metallib":"./hydra.metallib",\n\t"uniforms":'+stringifyWithFunctions(glsl[0].uniforms)+'\n}');
-            require("fs").writeFileSync(FILENAME+".metal",glsl[0].frag);
-            if(BUILD) {
-                require("child_process").execSync("xcrun -sdk "+OS+" metal -c "+FILENAME+".metal -o "+FILENAME+".air; xcrun -sdk "+OS+" metallib "+FILENAME+".air -o "+FILENAME+".metallib");
-            }
-        }
-    };
-}
-/*
 global["o0"] = {
 	name:"o0",
 	uniforms:{},
@@ -40,12 +24,12 @@ global["o0"] = {
 		}
 	}
 };
-*/
+
 for(let k=0; k<4; k++) {
 	global["s"+k] = {
 		name:"s"+k,
 		uniforms:{},
-		getTexture:function() {},
+		getTexture:function(){},
 	};
 }
 

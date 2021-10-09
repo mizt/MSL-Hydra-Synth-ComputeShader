@@ -115,7 +115,7 @@ function formatArguments (userArgs, defaultArgs) {
 }
 
 
-var GeneratorFactory = function (defaultOutput) {
+const GeneratorFactory = function (defaultOutput) {
 
   let self = this
   self.functions = {}
@@ -174,11 +174,12 @@ var GeneratorFactory = function (defaultOutput) {
         obj.passes.push(pass)
         return obj
       }
-    } else {
+    }
+    else {
       Generator.prototype[method] = function (...args) {
         const inputs = formatArguments(args, transform.inputs)
 
-        if (transform.type === 'combine' || transform.type === 'combineCoord') {
+        if(transform.type==='combine'||transform.type==='combineCoord') {
         // composition function to be executed when all transforms have been added
         // c0 and c1 are two inputs.. (explain more)
           var f = (c0) => (c1) => {
@@ -220,9 +221,9 @@ var GeneratorFactory = function (defaultOutput) {
 //
 //   iterate through transform types and create a function for each
 //
-Generator.prototype.compile = function (pass) {
+Generator.prototype.compile = function(pass) {
 //  console.log("compiling", pass)
-  var frag = `#pragma clang diagnostic push
+  const frag = `#pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-variable"
 #include <metal_stdlib>
 using namespace metal;
@@ -257,23 +258,21 @@ ${pass.uniforms.map((uniform) => {
           return '';
         }
         else {
-          return `  device float *${uniform.name}[[id(${uniform.name.split("_")[1]})]];
-`
+          return `  device float *${uniform.name}[[id(${uniform.name.split("_")[1]})]];`
         }
     }).join('')+'};'}
+    
 ${Object.values(glslTransforms).map((transform) => {
     return `${transform.glsl}`
   }).join('')}
 
 kernel void processimage(
-    texture2d<float,access::write> o0[[texture(0)]],
-    texture2d<float,access::write> o1[[texture(1)]],
-    texture2d<float,access::write> o2[[texture(2)]],
-    texture2d<float,access::write> o3[[texture(3)]],
-    texture2d<float,access::sample> s0[[texture(4)]],
-    texture2d<float,access::sample> s1[[texture(5)]],
-    texture2d<float,access::sample> s2[[texture(6)]],
-    texture2d<float,access::sample> s3[[texture(7)]],
+    texture2d<float,access::write> out[[texture(0)]],
+    texture2d<float,access::sample> o0[[texture(1)]],
+    texture2d<float,access::sample> s0[[texture(2)]],
+    texture2d<float,access::sample> s1[[texture(3)]],
+    texture2d<float,access::sample> s2[[texture(4)]],
+    texture2d<float,access::sample> s3[[texture(5)]],
     constant FragmentShaderArguments &args[[buffer(0)]],
     uint2 gid[[thread_position_in_grid]]) {
         
@@ -298,16 +297,15 @@ kernel void processimage(
   float ${uniform.name} = args.${uniform.name}[0];`
           }
         }).join('')}
-        
-  o0.write(${pass.transform('st')},gid);
+  out.write(${pass.transform('st')}, gid);
 }
 #pragma clang diagnostic pop`
  
   return frag
 }
 
-Generator.prototype.glsl = function (_output) {
-  var output = _output || this.defaultOutput
+Generator.prototype.glsl = function() {
+  var output = this.defaultOutput
 
   var passes = this.passes.map((pass) => {
     var uniforms = {}
@@ -332,16 +330,13 @@ Generator.prototype.glsl = function (_output) {
 
 
 
-Generator.prototype.out = function (_output) {
+Generator.prototype.out = function () {
 //  console.log('UNIFORMS', this.uniforms, output)
-  var output = _output || this.defaultOutput
+  var output = this.defaultOutput
   
   var tmp = this.glsl(output);
   
   delete tmp[0].uniforms["o0"];
-  delete tmp[0].uniforms["o1"];
-  delete tmp[0].uniforms["o2"];
-  delete tmp[0].uniforms["o3"];
   delete tmp[0].uniforms["s0"];
   delete tmp[0].uniforms["s1"];
   delete tmp[0].uniforms["s2"];

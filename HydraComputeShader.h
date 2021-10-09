@@ -4,8 +4,8 @@
 
 #import "ComputeShaderBase.h"
 
+#define HYDRA_OUT (1+1)
 #define HYDRA_IN 4
-#define HYDRA_OUT 4
 #define HYDRA_UNIFORM_TIME 0
 #define HYDRA_UNIFORM_RESOLUTION 1
 #define HYDRA_UNIFORM_MOUSE 2
@@ -49,10 +49,18 @@ class HydraComputeShader : public ComputeShaderBase {
                 
                 ComputeShaderBase::update();
                 this->copy(this->_buffer[0],this->_texture[0]);
+                this->replace(this->_texture[1],this->_buffer[0]);
+                
             }
             return this->_buffer[n];
         }
         
+        void src(unsigned int n) {
+            if(n<4) {
+                this->replace(this->_texture[HYDRA_OUT+n],this->_buffer[HYDRA_OUT+n]);
+            }
+        }
+            
         unsigned int *bytes(int n=0) {
             return this->_buffer[n];
         }
@@ -83,7 +91,7 @@ class HydraComputeShader : public ComputeShaderBase {
 
             this->_useArgumentEncoder = true;
 
-            for(int k=0; k<(HYDRA_IN+HYDRA_OUT); k++) {
+            for(int k=0; k<(HYDRA_OUT+HYDRA_IN); k++) {
                 this->_buffer.push_back(new unsigned int[w*h]);
                 this->fill(this->_buffer[k],0x0);
             }
@@ -119,7 +127,7 @@ class HydraComputeShader : public ComputeShaderBase {
                 MTLTextureDescriptor *RGBA8Unorm = ComputeShaderBase::descriptor(MTLPixelFormatRGBA8Unorm,w,h);
                 RGBA8Unorm.usage = MTLTextureUsageShaderWrite|MTLTextureUsageShaderRead;
 
-                for(int k=0; k<(HYDRA_IN+HYDRA_OUT); k++) {
+                for(int k=0; k<(HYDRA_OUT+HYDRA_IN); k++) {
                     this->_texture.push_back([this->_device newTextureWithDescriptor:RGBA8Unorm]);
                 }
                 
