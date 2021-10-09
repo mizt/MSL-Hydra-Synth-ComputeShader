@@ -31,7 +31,7 @@ class HydraComputeShader : public ComputeShaderBase {
         
     public:
     
-        unsigned int *exec() {
+        unsigned int *exec(int n=0) {
             
             if(this->init()) {
                 
@@ -50,11 +50,11 @@ class HydraComputeShader : public ComputeShaderBase {
                 ComputeShaderBase::update();
                 this->copy(this->_buffer[0],this->_texture[0]);
             }
-            return this->_buffer[0];
+            return this->_buffer[n];
         }
         
-        unsigned int *bytes() {
-            return this->_buffer[0];
+        unsigned int *bytes(int n=0) {
+            return this->_buffer[n];
         }
     
         void set(unsigned int index, float value) {
