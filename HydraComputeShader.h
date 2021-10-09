@@ -25,6 +25,8 @@ class HydraComputeShader : public ComputeShaderBase {
 
     protected:
     
+        double startTime = CFAbsoluteTimeGetCurrent();
+    
         std::vector<Hydra::UniformType> _uniformsType;
         NSMutableArray *_uniformsKey = [NSMutableArray array];
         NSMutableArray *_uniformsValue = [NSMutableArray array];
@@ -34,6 +36,10 @@ class HydraComputeShader : public ComputeShaderBase {
         unsigned int *exec(int n=0) {
             
             if(this->init()) {
+                
+                this->replace(this->_texture[1],this->_buffer[0]);
+
+                ((float *)[this->_arguments[HYDRA_UNIFORM_TIME] contents])[0] = CFAbsoluteTimeGetCurrent() - startTime;
                 
                 [Hydra::jscontext evaluateScript:[NSString stringWithFormat:@"time=%f;",((float *)[this->_arguments[HYDRA_UNIFORM_TIME] contents])[0]]];
                 [Hydra::jscontext evaluateScript:[NSString stringWithFormat:@"resolution={x:%d,y:%d};",this->_width,this->_height]];
@@ -49,7 +55,6 @@ class HydraComputeShader : public ComputeShaderBase {
                 
                 ComputeShaderBase::update();
                 this->copy(this->_buffer[0],this->_texture[0]);
-                this->replace(this->_texture[1],this->_buffer[0]);
                 
             }
             return this->_buffer[n];
@@ -91,10 +96,8 @@ class HydraComputeShader : public ComputeShaderBase {
 
             this->_useArgumentEncoder = true;
 
-            for(int k=0; k<(HYDRA_OUT+HYDRA_IN); k++) {
-                this->_buffer.push_back(new unsigned int[w*h]);
-                this->fill(this->_buffer[k],0x0);
-            }
+            this->_buffer.push_back(new unsigned int[w*h]);
+            this->fill(this->_buffer[0],0x0);
                         
             NSDictionary *json = nil;
             
@@ -205,4 +208,5 @@ class HydraComputeShader : public ComputeShaderBase {
             this->_uniformsValue = nil;
         }
 };
+
 
