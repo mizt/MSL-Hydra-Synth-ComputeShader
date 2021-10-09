@@ -1,6 +1,6 @@
 /* globals tex */
 
-const HYDRA_OFFSET_UNIFORM = 3;
+let offset_uniform = 3;
 
 
 //const { seq, sin, ramp, createFades } = require('./timingUtils.js')
@@ -10,8 +10,7 @@ const glslTransforms = require('./MSL-composable-glsl-functions.js')
 // function string
 //const renderPassFunctions = require('./renderpass-functions.js')
 
-const counter = require('./counter.js')
-const shaderManager = require('./shaderManager.js')
+//const shaderManager = require('./shaderManager.js')
 
 var Generator = function (param) {
   return Object.create(Generator.prototype)
@@ -100,8 +99,7 @@ function formatArguments (userArgs, defaultArgs) {
         }
         else {
           if(typedArg.isUniform) {
-            typedArg.name = input.name +"_"+ (HYDRA_OFFSET_UNIFORM+counter.get())
-            counter.increment();
+            typedArg.name = input.name +"_"+ (offset_uniform++);
           }
           else {
             typedArg.name = input.name;
@@ -123,7 +121,7 @@ const GeneratorFactory = function (defaultOutput) {
   // set global utility functions. to do: make global optional
   //global.sin = sin
   //global.ramp = ramp
-  global.frag = shaderManager(defaultOutput)
+  //global.frag = shaderManager(defaultOutput)
 
   //createFades(6)
   // extend Array prototype
