@@ -100,13 +100,7 @@ function formatArguments (userArgs, defaultArgs) {
         typedArg.name = x.name;
       }
       else {
-        if(input.name=="time") {
-          typedArg.name = input.name;
-        }
-        else if(input.name=="resolution") {
-          typedArg.name = input.name;
-        }
-        else if(input.name=="tex") {
+        if(input.name=="time"||input.name=="resolution"||input.name=="tex") {
           typedArg.name = input.name;
         }
         else {
@@ -390,7 +384,7 @@ Generator.prototype.out = function () {
   delete tmp[0].uniforms.time;
   delete tmp[0].uniforms.resolution;
 
-  output.renderPasses(this.glsl(output))
+  output.renderPasses(tmp);
 
 }
 
