@@ -58,18 +58,20 @@ class ComputeShaderBase {
     
         bool init() { return this->_init; }
     
-        void replace(id<MTLTexture> texture, T *data) {
-           [texture replaceRegion:MTLRegionMake2D(0,0,this->_width,this->_height) mipmapLevel:0 withBytes:data bytesPerRow:(this->_width)<<2];
+        void replace(id<MTLTexture> texture, T *data, int rowBytes) {
+           [texture replaceRegion:MTLRegionMake2D(0,0,this->_width,this->_height) mipmapLevel:0 withBytes:data bytesPerRow:rowBytes];
         }
  
-        void copy(T *data, id<MTLTexture> texture) {
-            [texture getBytes:data bytesPerRow:this->_width<<2 fromRegion:MTLRegionMake2D(0,0,this->_width,this->_height) mipmapLevel:0];
+        void copy(T *data, id<MTLTexture> texture, int rowBytes) {
+            [texture getBytes:data bytesPerRow:rowBytes fromRegion:MTLRegionMake2D(0,0,this->_width,this->_height) mipmapLevel:0];
         }
     
-        void fill(T *data,T value) {
+        void fill(T *data,T value, int rowBytes, int num) {
             for(int i=0; i<this->_height; i++) {
                 for(int j=0; j<this->_width; j++) {
-                    data[i*this->_width+j] = value;
+                    for(int n=0; n<num; n++) {
+                        data[i*rowBytes+j] = value;
+                    }
                 }
             }
         }
@@ -146,3 +148,4 @@ class ComputeShaderBase {
             }
         }
 };
+

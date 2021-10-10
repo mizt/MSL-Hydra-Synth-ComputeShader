@@ -37,7 +37,7 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
             
             if(this->init()) {
                 
-                this->replace(this->_texture[1],this->_buffer[0]);
+                this->replace(this->_texture[1],this->_buffer[0],this->_width*4);
 
                 ((float *)[this->_arguments[HYDRA_UNIFORM_TIME] contents])[0] = CFAbsoluteTimeGetCurrent() - startTime;
                 
@@ -54,7 +54,7 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
                 }
                 
                 ComputeShaderBase::update();
-                this->copy(this->_buffer[0],this->_texture[0]);
+                this->copy(this->_buffer[0],this->_texture[0],this->_width*4);
                 
             }
             return this->_buffer[n];
@@ -62,7 +62,7 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
         
         void src(unsigned int n) {
             if(n<4) {
-                this->replace(this->_texture[HYDRA_OUT+n],this->_buffer[HYDRA_OUT+n]);
+                this->replace(this->_texture[HYDRA_OUT+n],this->_buffer[HYDRA_OUT+n],this->_width*4);
             }
         }
             
@@ -97,7 +97,7 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
             this->_useArgumentEncoder = true;
 
             this->_buffer.push_back(new unsigned int[w*h]);
-            this->fill(this->_buffer[0],0x0);
+            this->fill(this->_buffer[0],0x0,this->_width*4,0);
                         
             NSDictionary *json = nil;
             
