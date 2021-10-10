@@ -97,9 +97,14 @@ float _noise(vec3 v){
         type: 'float',
         name: 'offset',
         default : 0.1
+      },
+      {
+        name: 'time',
+        type: 'float',
+        default: 'time'
       }
     ],
-    glsl: `vec4 noise(vec2 st, float scale, float offset){
+    glsl: `vec4 noise(vec2 st, float scale, float offset, float time){
       return vec4(vec3(_noise(vec3(st*scale, offset*time))), 1.0);
     }`
   },
@@ -120,10 +125,15 @@ float _noise(vec3 v){
         type: 'float',
         name: 'blending',
         default : 0.3
+      },
+      {
+        name: 'time',
+        type: 'float',
+        default: 'time'
       }
     ],
     notes: 'from https://thebookofshaders.com/edit.php#12/vorono-01.frag, https://www.shadertoy.com/view/ldB3zc',
-    glsl: `vec4 voronoi(vec2 st, float scale, float speed, float blending) {
+    glsl: `vec4 voronoi(vec2 st, float scale, float speed, float blending, float time) {
       vec3 color = vec3(.0);
 
    // Scale
@@ -175,9 +185,14 @@ float _noise(vec3 v){
         name: 'offset',
         type: 'float',
         default: 0.0
+      },
+      {
+        name: 'time',
+        type: 'float',
+        default: 'time'
       }
     ],
-    glsl: `vec4 osc(vec2 _st, float freq, float sync, float offset){
+    glsl: `vec4 osc(vec2 _st, float freq, float sync, float offset, float time){
             vec2 st = _st;
             float r = sin((st.x-offset/freq+time*sync)*freq)*0.5  + 0.5;
             float g = sin((st.x+time*sync)*freq)*0.5 + 0.5;
@@ -220,9 +235,14 @@ float _noise(vec3 v){
         name: 'speed',
         type: 'float',
         default: 0.0
+      },
+      {
+        name: 'time',
+        type: 'float',
+        default: 'time'
       }
     ],
-    glsl: `vec4 gradient(vec2 _st, float speed) {
+    glsl: `vec4 gradient(vec2 _st, float speed, float time) {
       return vec4(_st, sin(time*speed), 1.0);
     }
     `
@@ -235,9 +255,9 @@ float _noise(vec3 v){
         type: 'texture'
       }
     ],
-    glsl: `vec4 src(vec2 _st, sampler2D _tex){
+    glsl: `vec4 src(vec2 _st, texture2d<float> _tex){
     //  vec2 uv = gl_FragCoord.xy/vec2(1280., 720.);
-      return texture2D(_tex, fract(_st));
+      return _tex.sample(_sampler, fract(_st));
     }`
   },
   solid: {
@@ -280,9 +300,14 @@ float _noise(vec3 v){
         name: 'speed',
         type: 'float',
         default: 0.0
+      },
+      {
+        name: 'time',
+        type: 'float',
+        default: 'time'
       }
     ],
-    glsl: `vec2 rotate(vec2 st, float _angle, float speed){
+    glsl: `vec2 rotate(vec2 st, float _angle, float speed, float time){
               vec2 xy = st - vec2(0.5);
               float angle = _angle + speed *time;
               xy = mat2(cos(angle),-sin(angle), sin(angle),cos(angle))*xy;
@@ -614,9 +639,14 @@ float _noise(vec3 v){
         name: 'speed',
         type: 'float',
         default: 0.0
+      },
+      {
+        name: 'time',
+        type: 'float',
+        default: 'time'
       }
     ],
-    glsl: `vec2 scrollX(vec2 st, float amount, float speed){
+    glsl: `vec2 scrollX(vec2 st, float amount, float speed, float time){
       st.x += amount + time*speed;
       return fract(st);
     }`
@@ -637,9 +667,14 @@ float _noise(vec3 v){
         name: 'speed',
         type: 'float',
         default: 0.0
+      },
+      {
+        name: 'time',
+        type: 'float',
+        default: 'time'
       }
     ],
-    glsl: `vec2 modulateScrollX(vec2 st, vec4 c1, float amount, float speed){
+    glsl: `vec2 modulateScrollX(vec2 st, vec4 c1, float amount, float speed, float time){
       st.x += c1.r*amount + time*speed;
       return fract(st);
     }`
@@ -656,9 +691,14 @@ float _noise(vec3 v){
         name: 'speed',
         type: 'float',
         default: 0.0
+      },
+      {
+        name: 'time',
+        type: 'float',
+        default: 'time'
       }
     ],
-    glsl: `vec2 scrollY(vec2 st, float amount, float speed){
+    glsl: `vec2 scrollY(vec2 st, float amount, float speed, float time){
       st.y += amount + time*speed;
       return fract(st);
     }`
@@ -679,9 +719,14 @@ float _noise(vec3 v){
         name: 'speed',
         type: 'float',
         default: 0.0
+      },
+      {
+        name: 'time',
+        type: 'float',
+        default: 'time'
       }
     ],
-    glsl: `vec2 modulateScrollY(vec2 st, vec4 c1, float amount, float speed){
+    glsl: `vec2 modulateScrollY(vec2 st, vec4 c1, float amount, float speed, float time){
       st.y += c1.r*amount + time*speed;
       return fract(st);
     }`
@@ -869,9 +914,14 @@ float _noise(vec3 v){
         name: 'amount',
         type: 'float',
         default: 1.0
+      },
+      {
+        name: 'resolution',
+        type: 'vec2',
+        default: 'resolution'
       }
     ],
-    glsl: `vec2 modulateHue(vec2 st, vec4 c1, float amount){
+    glsl: `vec2 modulateHue(vec2 st, vec4 c1, float amount, vec2 resolution){
 
             return st + (vec2(c1.g - c1.r, c1.b - c1.g) * amount * 1.0/resolution.xy);
           }`
