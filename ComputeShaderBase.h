@@ -13,7 +13,7 @@ class ComputeShaderBase {
         id<MTLLibrary> _library = nil;
         std::vector<id<MTLTexture>> _texture;
         std::vector<id<MTLBuffer>> _params;
-        std::vector<unsigned int *> _buffer;
+        std::vector<T *> _buffer;
 
         bool _useArgumentEncoder = false;
         id<MTLArgumentEncoder> _argumentEncoder = nil;
