@@ -1,3 +1,4 @@
+template <typename T>
 class ComputeShaderBase {
     
     private:
@@ -57,18 +58,18 @@ class ComputeShaderBase {
     
         bool init() { return this->_init; }
     
-        void replace(id<MTLTexture> texture, unsigned int *data) {
+        void replace(id<MTLTexture> texture, T *data) {
            [texture replaceRegion:MTLRegionMake2D(0,0,this->_width,this->_height) mipmapLevel:0 withBytes:data bytesPerRow:(this->_width)<<2];
         }
  
-        void copy(unsigned int *data, id<MTLTexture> texture) {
+        void copy(T *data, id<MTLTexture> texture) {
             [texture getBytes:data bytesPerRow:this->_width<<2 fromRegion:MTLRegionMake2D(0,0,this->_width,this->_height) mipmapLevel:0];
         }
     
-        void fill(unsigned int *data,unsigned int abgr) {
+        void fill(T *data,T value) {
             for(int i=0; i<this->_height; i++) {
                 for(int j=0; j<this->_width; j++) {
-                    this->_buffer[0][i*this->_width+j] = abgr;
+                    data[i*this->_width+j] = value;
                 }
             }
         }

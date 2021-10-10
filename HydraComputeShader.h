@@ -21,7 +21,7 @@ namespace Hydra {
     };
 }
 
-class HydraComputeShader : public ComputeShaderBase {
+class HydraComputeShader : public ComputeShaderBase<unsigned int> {
 
     protected:
     
