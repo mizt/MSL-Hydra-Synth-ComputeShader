@@ -1,3 +1,5 @@
+#import <vector>
+
 template <typename T>
 class ComputeShaderBase {
     
@@ -13,7 +15,6 @@ class ComputeShaderBase {
         id<MTLLibrary> _library = nil;
         std::vector<id<MTLTexture>> _texture;
         std::vector<id<MTLBuffer>> _params;
-        std::vector<T *> _buffer;
 
         bool _useArgumentEncoder = false;
         id<MTLArgumentEncoder> _argumentEncoder = nil;
@@ -22,7 +23,13 @@ class ComputeShaderBase {
 
         int _width = 0;
         int _height = 0;
+    
+    public:
+    
+        std::vector<MTLReadPixels<T> *> _buffer;
 
+        bool init() { return this->_init; }
+    
         ComputeShaderBase(int w, int h) {
             this->_width = w;
             this->_height = h;
@@ -44,50 +51,54 @@ class ComputeShaderBase {
             }
             
             for(int k=0; k<this->_buffer.size(); k++) {
-                delete[] this->_buffer[k];
+                delete this->_buffer[k];
             }
             
             for(int k=0; k<this->_arguments.size(); k++) {
                 this->_arguments[k] = nil;
             }
         }
-    
-        MTLTextureDescriptor *descriptor(MTLPixelFormat format,int w,int h) {
-            return [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:format width:w height:h mipmapped:NO];
-        }
-    
-        bool init() { return this->_init; }
-    
-        void replace(id<MTLTexture> texture, T *data, int rowBytes) {
-           [texture replaceRegion:MTLRegionMake2D(0,0,this->_width,this->_height) mipmapLevel:0 withBytes:data bytesPerRow:rowBytes];
-        }
- 
-        void copy(T *data, id<MTLTexture> texture, int rowBytes) {
-            [texture getBytes:data bytesPerRow:rowBytes fromRegion:MTLRegionMake2D(0,0,this->_width,this->_height) mipmapLevel:0];
-        }
-    
-        void fill(T *data,T value, int rowBytes, int num) {
-            for(int i=0; i<this->_height; i++) {
-                for(int j=0; j<this->_width; j++) {
-                    for(int n=0; n<num; n++) {
-                        data[i*rowBytes+j] = value;
+           
+        bool setup(NSString *filename=@"default.metallib", NSString *identifier=nil, NSString *func=@"processimage") {
+            
+            NSString *metallib = nil;
+                        
+            NSString *normalize = FileManager::path(FileManager::replace(filename,@[@"-macosx.metallib",@"-iphoneos.metallib",@"-iphonesimulator.metallib"],@".metallib"),identifier);
+            
+#if TARGET_OS_OSX
+            NSString *macosx = FileManager::replace(normalize,@".metallib",@"-macosx.metallib");
+            if(FileManager::exists(macosx)) {
+                metallib = macosx;
+            } else
+#elif TARGET_OS_SIMULATOR
+            NSString *iphonesimulator = FileManager::replace(normalize,@".metallib",@"-iphonesimulator.metallib");
+            if(FileManager::exists(iphonesimulator)) {
+                    metallib = iphonesimulator;
+            } else
+#elif TARGET_OS_IPHONE
+            NSString *iphoneos = FileManager::replace(normalize,@".metallib",@"-iphoneos.metallib");
+            if(FileManager::exists(iphoneos)) {
+                metallib = iphoneos;
+            } else
+#endif
+            if(FileManager::exists(normalize)) {
+                metallib = normalize;
+            }
+            
+            if(metallib) {
+                NSError *error = nil;
+                this->_library = [this->_device newLibraryWithFile:metallib error:&error];
+
+                if(this->_library) {
+                    this->_function = [this->_library newFunctionWithName:func];
+                    if(this->_function) {
+                        this->_pipelineState = [this->_device newComputePipelineStateWithFunction:this->_function error:&error];
                     }
+                    
+                    if(error==nil) this->_init = true;
                 }
             }
-        }
-    
-        id<MTLBuffer> newBuffer(long length, MTLResourceOptions options = MTLResourceOptionCPUCacheModeDefault) {
-            return [this->_device newBufferWithLength:length options:options];
-        }
-        
-        bool setup(NSString *filename, NSString *func=@"processimage") {
-            NSError *error = nil;
-            this->_library = [this->_device newLibraryWithFile:filename error:&error];
-            if(error==nil&&this->_library) {
-                this->_function = [this->_library newFunctionWithName:func];
-                this->_pipelineState = [this->_device newComputePipelineStateWithFunction:this->_function error:&error];
-                if(error==nil) this->_init = true;
-            }
+         
             return this->_init;
         }
     
@@ -101,12 +112,8 @@ class ComputeShaderBase {
                 id<MTLComputeCommandEncoder> encoder = commandBuffer.computeCommandEncoder;
                 [encoder setComputePipelineState:this->_pipelineState];
                 
-                [encoder setTexture:this->_texture[0] atIndex:0];
-                [encoder useResource:this->_texture[0] usage:MTLResourceUsageWrite];
-                
-                for(int k=1; k<this->_texture.size(); k++) {
+                for(int k=0; k<this->_texture.size(); k++) {
                     [encoder setTexture:this->_texture[k] atIndex:k];
-                    [encoder useResource:this->_texture[k] usage:MTLResourceUsageSample];
                 }
                                       
                 for(int k=0; k<this->_params.size(); k++) {
@@ -136,4 +143,5 @@ class ComputeShaderBase {
             }
         }
 };
+
 

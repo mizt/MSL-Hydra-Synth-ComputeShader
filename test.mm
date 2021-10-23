@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+#import <Metal/Metal.h>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
@@ -7,7 +8,13 @@ namespace stb_image {
     #import "stb_image_write.h"
 }
 
+#import <vector>
+
 #import "FileManager.h"
+#import "MTLUtils.h"
+#import "MTLReadPixels.h"
+#import "PixelBuffer.h"
+#import "ComputeShaderBase.h"
 #import "HydraComputeShader.h"
 
 int main(int argc, const char * argv[]) {
@@ -18,7 +25,7 @@ int main(int argc, const char * argv[]) {
         
         HydraComputeShader *hydra = new HydraComputeShader(w,h,@"hydra.json");
                 
-        stb_image::stbi_write_png("test.png",w,h,4,(void const *)hydra->exec(0),w<<2);
+        stb_image::stbi_write_png("test.png",w,h,4,(void const *)hydra->exec(),w<<2);
         
         delete hydra;
     }
