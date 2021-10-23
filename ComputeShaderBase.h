@@ -80,18 +80,15 @@ class ComputeShaderBase {
             return [this->_device newBufferWithLength:length options:options];
         }
         
-        void setup(NSString *filename, NSString *func=@"processimage") {
-            
+        bool setup(NSString *filename, NSString *func=@"processimage") {
             NSError *error = nil;
             this->_library = [this->_device newLibraryWithFile:filename error:&error];
-
-            if(this->_library) {
+            if(error==nil&&this->_library) {
                 this->_function = [this->_library newFunctionWithName:func];
-                
                 this->_pipelineState = [this->_device newComputePipelineStateWithFunction:this->_function error:&error];
-                
                 if(error==nil) this->_init = true;
             }
+            return this->_init;
         }
     
         void update() {
@@ -104,8 +101,12 @@ class ComputeShaderBase {
                 id<MTLComputeCommandEncoder> encoder = commandBuffer.computeCommandEncoder;
                 [encoder setComputePipelineState:this->_pipelineState];
                 
-                for(int k=0; k<this->_texture.size(); k++) {
+                [encoder setTexture:this->_texture[0] atIndex:0];
+                [encoder useResource:this->_texture[0] usage:MTLResourceUsageWrite];
+                
+                for(int k=1; k<this->_texture.size(); k++) {
                     [encoder setTexture:this->_texture[k] atIndex:k];
+                    [encoder useResource:this->_texture[k] usage:MTLResourceUsageSample];
                 }
                                       
                 for(int k=0; k<this->_params.size(); k++) {
