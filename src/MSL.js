@@ -17,7 +17,7 @@ global["o0"] = {
 	uniforms:{},
 	getTexture:function() {},
 	renderPasses:function(glsl) {			
-        require("fs").writeFileSync(FILENAME+".json","{\n\t\"version\":"+VERSION.toFixed(1)+",\n\t\"metallib\":"+FILENAME+".metallib\",\n\t\"uniforms\":"+stringifyWithFunctions(glsl[0].uniforms)+"\n}");
+        require("fs").writeFileSync(FILENAME+".json","{\n\t\"version\":"+VERSION.toFixed(1)+",\n\t\"metallib\":\""+FILENAME+".metallib\",\n\t\"uniforms\":"+stringifyWithFunctions(glsl[0].uniforms)+"\n}");
         require("fs").writeFileSync(FILENAME+".metal",glsl[0].frag);
 		if(BUILD) {
             for(let k=0; k<OS.length; k++) {
