@@ -1,5 +1,5 @@
 {
 	"version":3.0,
-	"metallib":hydra.metallib",
+	"metallib":"hydra.metallib",
 	"uniforms":{"frequency_3":20,"sync_4":0.1,"offset_5":0.8,"angle_6":0.8,"speed_7":0}
 }
