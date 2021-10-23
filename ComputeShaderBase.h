@@ -80,19 +80,6 @@ class ComputeShaderBase {
             return [this->_device newBufferWithLength:length options:options];
         }
         
-        NSString *path(NSString *filename,NSString *identifier=nil) {
-            NSString *path;
-            if(identifier==nil) {
-                path = [[NSBundle mainBundle] bundlePath];
-            }
-            else {
-                NSBundle *bundle = [NSBundle bundleWithIdentifier:identifier];
-                path = [bundle resourcePath];
-            }
-            
-            return [NSString stringWithFormat:@"%@/%@",path,filename];
-        }
-    
         void setup(NSString *filename, NSString *func=@"processimage") {
             
             NSError *error = nil;

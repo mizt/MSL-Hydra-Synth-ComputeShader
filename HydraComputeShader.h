@@ -33,23 +33,42 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
         
     public:
     
+        void set(id<MTLBuffer> buffer,float x) {
+            float *f = (float *)[buffer contents];
+            f[0] = x;
+        }
+
+        void set(id<MTLBuffer> buffer,float x,float y) {
+            float *f = (float *)[buffer contents];
+            f[0] = x;
+            f[1] = y;
+        }
+    
+        float *get(id<MTLBuffer> buffer) {
+            return ((float *)[buffer contents]);
+        }
+    
+        float get(id<MTLBuffer> buffer,int n) {
+            return ((float *)[buffer contents])[n];
+        }
+        
         unsigned int *exec(int n=0) {
             
             if(this->init()) {
                 
                 this->replace(this->_texture[1],this->_buffer[0],this->_width*4);
+                this->set(this->_arguments[HYDRA_UNIFORM_TIME],CFAbsoluteTimeGetCurrent()-startTime);
 
-                ((float *)[this->_arguments[HYDRA_UNIFORM_TIME] contents])[0] = CFAbsoluteTimeGetCurrent() - startTime;
-                
-                [Hydra::jscontext evaluateScript:[NSString stringWithFormat:@"time=%f;",((float *)[this->_arguments[HYDRA_UNIFORM_TIME] contents])[0]]];
+                [Hydra::jscontext evaluateScript:[NSString stringWithFormat:@"time=%f;",this->get(this->_arguments[HYDRA_UNIFORM_TIME],0)]];
                 [Hydra::jscontext evaluateScript:[NSString stringWithFormat:@"resolution={x:%d,y:%d};",this->_width,this->_height]];
-                float *mouseBuffer = (float *)[this->_arguments[HYDRA_UNIFORM_MOUSE] contents];
+                float *mouseBuffer = this->get(this->_arguments[HYDRA_UNIFORM_MOUSE]);
                 [Hydra::jscontext evaluateScript:[NSString stringWithFormat:@"mouse={x:%f,y:%f};",mouseBuffer[0],mouseBuffer[1]]];
                 
                 for(int k=0; k<this->_uniformsType.size(); k++) {
                     Hydra::UniformType type = this->_uniformsType[k];
                     if(type==Hydra::UniformType::FunctionType) {
-                        ((float *)[(id<MTLBuffer>)this->_arguments[HYDRA_OFFSET_UNIFORM+k] contents])[0] = [[Hydra::jscontext evaluateScript:[NSString stringWithFormat:@"(%@)();",this->_uniformsValue[k]]] toDouble];
+                        
+                        this->set(this->_arguments[HYDRA_OFFSET_UNIFORM+k],[[Hydra::jscontext evaluateScript:[NSString stringWithFormat:@"(%@)();",this->_uniformsValue[k]]] toDouble]);
                     }
                 }
                 
@@ -100,33 +119,71 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
             this->fill(this->_buffer[0],0x0,this->_width*4,0);
                         
             NSDictionary *json = nil;
+            NSString *metallib = nil;
             
-            NSString *path = nil;
-            if([[filename pathExtension] compare:@"json"]==NSOrderedSame) {
-                json = [NSJSONSerialization JSONObjectWithData:[[[NSString alloc] initWithContentsOfFile:this->path(filename,identifier) encoding:NSUTF8StringEncoding error:nil] dataUsingEncoding:NSUnicodeStringEncoding] options:NSJSONReadingAllowFragments error:nil];
-                
-                if(json[@"metallib"]) {
-                    path = this->path(json[@"metallib"],identifier);
-                }
-                
-                for(id key in [json[@"uniforms"] keyEnumerator]) {
-                    [this->_uniformsKey addObject:key];
-                }
-                
-                this->_uniformsKey = (NSMutableArray *)[(NSArray *)this->_uniformsKey sortedArrayUsingComparator:^NSComparisonResult(NSString *s1,NSString *s2) {
-                    int n1 = [[s1 componentsSeparatedByString:@"_"][1] intValue];
-                    int n2 = [[s2 componentsSeparatedByString:@"_"][1] intValue];
-                    if(n1<n2) return (NSComparisonResult)NSOrderedAscending;
-                    else if(n1>n2) return (NSComparisonResult)NSOrderedDescending;
-                    else return (NSComparisonResult)NSOrderedSame;
-                }];
+            if(FileManager::extension(filename,@"metallib")) {
+                metallib = FileManager::path(filename,identifier);
             }
-            else if([[filename pathExtension] compare:@"metallib"]==NSOrderedSame) {
-                path = this->path(filename,identifier);
+            else if(FileManager::extension(filename,@"json")) {
+                
+                NSString *path = FileManager::path(filename,identifier);
+
+                if(FileManager::exists(path)) {
+                    NSString *str = [[NSString alloc] initWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+                    if(str) {
+                        json = [NSJSONSerialization JSONObjectWithData:[str dataUsingEncoding:NSUnicodeStringEncoding] options:NSJSONReadingAllowFragments error:nil];
+                        if(json) {
+                                                        
+                            if(json[@"metallib"]) {
+                                
+                                NSString *normalize = FileManager::path(FileManager::replace(json[@"metallib"],@[@"-macosx.metallib",@"-iphoneos.metallib",@"-iphonesimulator.metallib"],@".metallib"),identifier);
+                                
+        #if TARGET_OS_OSX
+                                NSString *macosx = FileManager::replace(normalize,@".metallib",@"-macosx.metallib");
+                                if(FileManager::exists(macosx)) {
+                                    metallib = macosx;
+                                } else
+        #elif TARGET_OS_SIMULATOR
+                                    
+                                    
+                                NSString *iphonesimulator = FileManager::replace(normalize,@".metallib",@"-iphonesimulator.metallib");
+                                
+                                if(FileManager::exists(iphonesimulator)) {
+                                        metallib = iphonesimulator;
+                                } else
+        #elif TARGET_OS_IPHONE
+                                NSString *iphoneos = FileManager::replace(normalize,@".metallib",@"-iphoneos.metallib");
+                                if(FileManager::exists(iphoneos)) {
+                                    metallib = iphoneos;
+                                } else
+        #endif
+                                if(FileManager::exists(normalize)) {
+                                    metallib = normalize;
+                                }
+                            }
+                            
+                            for(id key in [json[@"uniforms"] keyEnumerator]) {
+                                [this->_uniformsKey addObject:key];
+                            }
+                            
+                            this->_uniformsKey = (NSMutableArray *)[(NSArray *)this->_uniformsKey sortedArrayUsingComparator:^NSComparisonResult(NSString *s1,NSString *s2) {
+                                int n1 = [[s1 componentsSeparatedByString:@"_"][1] intValue];
+                                int n2 = [[s2 componentsSeparatedByString:@"_"][1] intValue];
+                                if(n1<n2) return (NSComparisonResult)NSOrderedAscending;
+                                else if(n1>n2) return (NSComparisonResult)NSOrderedDescending;
+                                else return (NSComparisonResult)NSOrderedSame;
+                            }];
+                            
+                        }
+                    }
+                }
+            }
+            else {
+                NSLog(@"%@",[filename pathExtension]);
             }
             
-            if(path) {
-               
+            if(metallib) {
+            
                 MTLTextureDescriptor *RGBA8Unorm = ComputeShaderBase::descriptor(MTLPixelFormatRGBA8Unorm,w,h);
                 RGBA8Unorm.usage = MTLTextureUsageShaderWrite|MTLTextureUsageShaderRead;
 
@@ -134,34 +191,24 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
                     this->_texture.push_back([this->_device newTextureWithDescriptor:RGBA8Unorm]);
                 }
                 
-                this->_params.push_back(this->newBuffer(sizeof(float)*2));
-                float *resolution = (float *)[this->_params[0] contents];
-                resolution[0] = w;
-                resolution[1] = h;
-                
-                ComputeShaderBase::setup(path);
+                ComputeShaderBase::setup(metallib);
                 
                 if(this->_useArgumentEncoder) {
                     
                     this->_argumentEncoder = [this->_function newArgumentEncoderWithBufferIndex:0];
-                    this->_argumentEncoderBuffer = this->newBuffer(sizeof(float)*[this->_argumentEncoder encodedLength],MTLResourceOptionCPUCacheModeDefault);
+                    this->_argumentEncoderBuffer = this->newBuffer(sizeof(float)*[this->_argumentEncoder encodedLength]);
                     [this->_argumentEncoder setArgumentBuffer:this->_argumentEncoderBuffer offset:0];
                     
-                    this->_arguments.push_back(this->newBuffer(sizeof(float),MTLResourceOptionCPUCacheModeDefault));
-                    float *timeBuffer = (float *)[this->_arguments[HYDRA_UNIFORM_TIME] contents];
-                    timeBuffer[0] = 0;
+                    this->_arguments.push_back(this->newBuffer(sizeof(float)));
+                    this->set(this->_arguments[HYDRA_UNIFORM_TIME],0);
                     [this->_argumentEncoder setBuffer:this->_arguments[HYDRA_UNIFORM_TIME] offset:0 atIndex:0];
                     
-                    this->_arguments.push_back(this->newBuffer(sizeof(float)*2,MTLResourceOptionCPUCacheModeDefault));
-                    float *resolutionBuffer = (float *)[this->_arguments[HYDRA_UNIFORM_RESOLUTION] contents];
-                    resolutionBuffer[0] = w;
-                    resolutionBuffer[1] = h;
+                    this->_arguments.push_back(this->newBuffer(sizeof(float)*2));
+                    this->set(this->_arguments[HYDRA_UNIFORM_RESOLUTION],w,h);
                     [this->_argumentEncoder setBuffer:this->_arguments[HYDRA_UNIFORM_RESOLUTION] offset:0 atIndex:1];
 
-                    this->_arguments.push_back(this->newBuffer(sizeof(float)*2,MTLResourceOptionCPUCacheModeDefault));
-                    float *mouseBuffer = (float *)[this->_arguments[HYDRA_UNIFORM_MOUSE] contents];
-                    mouseBuffer[0] = 0;
-                    mouseBuffer[1] = 0;
+                    this->_arguments.push_back(this->newBuffer(sizeof(float)*2));
+                    this->set(this->_arguments[HYDRA_UNIFORM_MOUSE],0,0);
                     [this->_argumentEncoder setBuffer:this->_arguments[HYDRA_UNIFORM_MOUSE] offset:0 atIndex:2];
                     
                     for(int k=0; k<[this->_uniformsKey count]; k++) {
@@ -169,7 +216,7 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
                         if([this->_uniformsValue count]<=k) { // add
                             
                             [this->_uniformsValue addObject:json[@"uniforms"][this->_uniformsKey[k]]];
-                            this->_arguments.push_back(this->newBuffer(sizeof(float),MTLResourceOptionCPUCacheModeDefault));
+                            this->_arguments.push_back(this->newBuffer(sizeof(float)));
                             [this->_argumentEncoder setBuffer:this->_arguments[HYDRA_OFFSET_UNIFORM+k] offset:0 atIndex:HYDRA_OFFSET_UNIFORM+k];
 
                         }
@@ -186,7 +233,7 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
                             type = Hydra::UniformType::FunctionType;
                         }
                         else {
-                            ((float *)[(id<MTLBuffer>)this->_arguments[HYDRA_OFFSET_UNIFORM+k] contents])[0] = [this->_uniformsValue[k] floatValue];
+                            this->set(this->_arguments[HYDRA_OFFSET_UNIFORM+k],[this->_uniformsValue[k] floatValue]);
                         }
                         
                         if(this->_uniformsType.size()<=k) { // add

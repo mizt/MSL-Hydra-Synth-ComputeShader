@@ -7,6 +7,7 @@ namespace stb_image {
     #import "stb_image_write.h"
 }
 
+#import "FileManager.h"
 #import "HydraComputeShader.h"
 
 int main(int argc, const char * argv[]) {
