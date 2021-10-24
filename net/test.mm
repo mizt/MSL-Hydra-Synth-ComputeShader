@@ -43,7 +43,6 @@ class App {
                     NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:nil];
                     if(json&&json[@"metallib"]) {
                         
-                        this->_lock = true;
                         
                         NSString *normalize = FileManager::replace(json[@"metallib"],@[@"-macosx.metallib",@"-iphoneos.metallib",@"-iphonesimulator.metallib"],@".metallib");
                         
@@ -59,16 +58,17 @@ class App {
                         filename = FileManager::replace(normalize,@".metallib",@"-iphoneos.metallib");
 
 #endif
-                
-                        NSLog(@"%@",filename);
-                        
+                                        
                         if(filename) {
-                            on(filename,^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error){
+                            
+                            this->_lock = true;
+
+                            on(filename,^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
                                 if(response&&!error) {
                                     
                                     @autoreleasepool {
                                                                              
-                                        dispatch_data_t metallib = dispatch_data_create(data.bytes, data.length, DISPATCH_TARGET_QUEUE_DEFAULT, DISPATCH_DATA_DESTRUCTOR_DEFAULT);
+                                        dispatch_data_t metallib = dispatch_data_create(data.bytes,data.length,DISPATCH_TARGET_QUEUE_DEFAULT,DISPATCH_DATA_DESTRUCTOR_DEFAULT);
                                         
                                         if(metallib) {
                                             
