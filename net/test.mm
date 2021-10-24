@@ -17,6 +17,32 @@ namespace stb_image {
 #import "ComputeShaderBase.h"
 #import "HydraComputeShader.h"
 
+namespace FileManager {
+
+        NSString *removePlatform(NSString *str) {            
+            NSString *extension = [NSString stringWithFormat:@".%@",[str pathExtension]];
+            return FileManager::replace(str,@[
+                [NSString stringWithFormat:@"-macosx%@",extension],
+                [NSString stringWithFormat:@"-iphoneos%@",extension],
+                [NSString stringWithFormat:@"-iphonesimulator%@",extension]],
+                extension);
+        }
+
+        NSString *addPlatform(NSString *str) {
+            NSString *extension = [NSString stringWithFormat:@".%@",[str pathExtension]];
+    #if TARGET_OS_OSX
+            return FileManager::replace(FileManager::removePlatform(str),extension,[NSString stringWithFormat:@"-macosx%@",extension]);
+    #elif TARGET_OS_SIMULATOR
+            return FileManager::replace(FileManager::removePlatform(str),extension,[NSString stringWithFormat:@"-iphonesimulator%@",extension]);
+    #elif TARGET_OS_IPHONE
+            return FileManager::replace(FileManager::removePlatform(str),extension,[NSString stringWithFormat:@"-iphoneos%@",extension]);
+    #else
+            return nil;
+    #endif
+    }
+
+};
+
 class App {
     
     private:
@@ -25,7 +51,7 @@ class App {
     
         NSString *baseURL = @"https://raw.githubusercontent.com/mizt/MSL-Hydra-Synth-ComputeShader/master";
         
-        void on(NSString *filename, void (^callback)(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error)) {
+        void load(NSString *filename, void (^callback)(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error)) {
             NSURL *json = [NSURL URLWithString:[NSString stringWithFormat:@"%@/%@",baseURL,filename]];
             NSURLRequest *request = [NSURLRequest requestWithURL:json cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10];
             NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
@@ -38,32 +64,19 @@ class App {
         
         App() {
             
-            on(@"hydra.json",^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error){
+            this->load(@"hydra.json",^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error){
                 if(response&&!error) {
                     NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:nil];
                     if(json&&json[@"metallib"]) {
                         
+                        NSString *filename = FileManager::addPlatform(json[@"metallib"]);
+                        NSLog(@"%@",filename);
                         
-                        NSString *normalize = FileManager::replace(json[@"metallib"],@[@"-macosx.metallib",@"-iphoneos.metallib",@"-iphonesimulator.metallib"],@".metallib");
-                        
-                        NSString *filename = nil;
-                        
-#if TARGET_OS_OSX
-                        filename = FileManager::replace(normalize,@".metallib",@"-macosx.metallib");
-
-#elif TARGET_OS_SIMULATOR
-                        filename = FileManager::replace(normalize,@".metallib",@"-iphonesimulator.metallib");
-
-#elif TARGET_OS_IPHONE
-                        filename = FileManager::replace(normalize,@".metallib",@"-iphoneos.metallib");
-
-#endif
-                                        
                         if(filename) {
                             
                             this->_lock = true;
 
-                            on(filename,^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+                            this->load(filename,^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
                                 if(response&&!error) {
                                     
                                     @autoreleasepool {
