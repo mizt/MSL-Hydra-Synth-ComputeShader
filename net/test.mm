@@ -21,6 +21,8 @@ class App {
     
     private:
     
+        bool _lock = false;
+    
         NSString *baseURL = @"https://raw.githubusercontent.com/mizt/MSL-Hydra-Synth-ComputeShader/master";
         
         void on(NSString *filename, void (^callback)(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error)) {
@@ -40,43 +42,56 @@ class App {
                 if(response&&!error) {
                     NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:nil];
                     if(json&&json[@"metallib"]) {
+                        
+                        this->_lock = true;
+                        
                         NSString *normalize = FileManager::replace(json[@"metallib"],@[@"-macosx.metallib",@"-iphoneos.metallib",@"-iphonesimulator.metallib"],@".metallib");
                         
-                        NSString *macosx = FileManager::replace(normalize,@".metallib",@"-macosx.metallib");
-                        NSLog(@"%@",macosx);
+                        NSString *filename = nil;
                         
-                        on(macosx,^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error){
-                            if(response&&!error) {
-                                
-                                @autoreleasepool {
-                                                                         
-                                    dispatch_data_t metallib = dispatch_data_create(data.bytes, data.length, DISPATCH_TARGET_QUEUE_DEFAULT, DISPATCH_DATA_DESTRUCTOR_DEFAULT);
+#if TARGET_OS_OSX
+                        filename = FileManager::replace(normalize,@".metallib",@"-macosx.metallib");
+
+#elif TARGET_OS_SIMULATOR
+                        filename = FileManager::replace(normalize,@".metallib",@"-iphonesimulator.metallib");
+
+#elif TARGET_OS_IPHONE
+                        filename = FileManager::replace(normalize,@".metallib",@"-iphoneos.metallib");
+
+#endif
+                
+                        NSLog(@"%@",filename);
+                        
+                        if(filename) {
+                            on(filename,^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error){
+                                if(response&&!error) {
                                     
-                                    if(metallib) {
+                                    @autoreleasepool {
+                                                                             
+                                        dispatch_data_t metallib = dispatch_data_create(data.bytes, data.length, DISPATCH_TARGET_QUEUE_DEFAULT, DISPATCH_DATA_DESTRUCTOR_DEFAULT);
                                         
-                                        int w = 1920;
-                                        int h = 1080;
-                                        
-                                        HydraComputeShader *hydra = new HydraComputeShader(w,h,metallib,json);
-                                                
-                                        stb_image::stbi_write_png("test.png",w,h,4,(void const *)hydra->exec(),w<<2);
-                                        
-                                        delete hydra;
-                                        
+                                        if(metallib) {
+                                            
+                                            int w = 1920;
+                                            int h = 1080;
+                                            
+                                            HydraComputeShader *hydra = new HydraComputeShader(w,h,metallib,json);
+                                                    
+                                            stb_image::stbi_write_png("test.png",w,h,4,(void const *)hydra->exec(),w<<2);
+                                            
+                                            delete hydra;
+                                            
+                                        }
                                     }
                                 }
-                            }
-                            else {                                
-                            }
-                        });
+                                
+                                this->_lock = false;
+                                
+                            });
+                        }
                     }
-                    else {
-                    }
-                }
-                else {
                 }
             });
-            
         }
         
         ~App() {
