@@ -121,7 +121,7 @@ class ComputeShaderBase {
                     [encoder setBuffer:this->_params[k] offset:0 atIndex:k];
                 }
                 
-                if(this->_useArgumentEncoder) [encoder setBuffer:this->_argumentEncoderBuffer offset:0 atIndex:0];
+                if(this->_useArgumentEncoder) [encoder setBuffer:this->_argumentEncoderBuffer offset:0 atIndex:this->_params.size()];
                 
                 int w = (int)this->_texture[0].width;
                 int h = (int)this->_texture[0].height;

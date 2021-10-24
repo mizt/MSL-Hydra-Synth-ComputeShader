@@ -64,6 +64,13 @@ class App {
         
         App() {
             
+            int w = 1920;
+            int h = 1080;
+            
+            HydraComputeShader *hydra = new HydraComputeShader(w,h,@"hydra.json");
+            stb_image::stbi_write_png("1.png",w,h,4,(void const *)hydra->exec(),w<<2);
+
+            
             this->load(@"hydra.json",^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error){
                 if(response&&!error) {
                     NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:nil];
@@ -83,15 +90,9 @@ class App {
                                                                              
                                         dispatch_data_t metallib = dispatch_data_create(data.bytes,data.length,DISPATCH_TARGET_QUEUE_DEFAULT,DISPATCH_DATA_DESTRUCTOR_DEFAULT);
                                         
-                                        if(metallib) {
-                                            
-                                            int w = 1920;
-                                            int h = 1080;
-                                            
-                                            HydraComputeShader *hydra = new HydraComputeShader(w,h,metallib,json);
-                                                    
-                                            stb_image::stbi_write_png("test.png",w,h,4,(void const *)hydra->exec(),w<<2);
-                                            
+                                        if(metallib&&json) {
+                                            hydra->reloadShader(metallib,json);
+                                            stb_image::stbi_write_png("2.png",w,h,4,(void const *)hydra->exec(),w<<2);
                                             delete hydra;
                                             
                                         }
