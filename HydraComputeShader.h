@@ -31,7 +31,6 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
         NSMutableArray *_uniformsKey = [NSMutableArray array];
         NSMutableArray *_uniformsValue = [NSMutableArray array];
     
-    
         void setupArgumentEncoderWithBuffer() {
             
             this->_argumentEncoder = [this->_function newArgumentEncoderWithBufferIndex:0];
@@ -83,6 +82,16 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
                     this->_uniformsType[k] = type;
                 }
             }
+        }
+    
+        void sortUniformsKey() {
+            this->_uniformsKey = (NSMutableArray *)[(NSArray *)this->_uniformsKey sortedArrayUsingComparator:^NSComparisonResult(NSString *s1,NSString *s2) {
+                int n1 = [[s1 componentsSeparatedByString:@"_"][1] intValue];
+                int n2 = [[s2 componentsSeparatedByString:@"_"][1] intValue];
+                if(n1<n2) return (NSComparisonResult)NSOrderedAscending;
+                else if(n1>n2) return (NSComparisonResult)NSOrderedDescending;
+                else return (NSComparisonResult)NSOrderedSame;
+            }];
         }
         
     public:
@@ -177,15 +186,9 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
                     [this->_uniforms setObject:json[@"uniforms"][key] forKey:key];
                     [this->_uniformsKey addObject:key];
                 }
-                                            
-                this->_uniformsKey = (NSMutableArray *)[(NSArray *)this->_uniformsKey sortedArrayUsingComparator:^NSComparisonResult(NSString *s1,NSString *s2) {
-                    int n1 = [[s1 componentsSeparatedByString:@"_"][1] intValue];
-                    int n2 = [[s2 componentsSeparatedByString:@"_"][1] intValue];
-                    if(n1<n2) return (NSComparisonResult)NSOrderedAscending;
-                    else if(n1>n2) return (NSComparisonResult)NSOrderedDescending;
-                    else return (NSComparisonResult)NSOrderedSame;
-                }];
                 
+                this->sortUniformsKey();
+                     
                 if(metallib) {
                 
                     MTLTextureDescriptor *RGBA8Unorm = MTLUtils::descriptor(MTLPixelFormatRGBA8Unorm,w,h);
@@ -195,38 +198,18 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
                         this->_texture.push_back([this->_device newTextureWithDescriptor:RGBA8Unorm]);
                     }
                     
-                    if(this->_device) {
-                        NSError *error = nil;
-                        this->_library = [this->_device newLibraryWithData:metallib error:&error];
-
-                        if(error==nil&&this->_library) {
-                            this->_function = [this->_library newFunctionWithName:@"processimage"];
-                            if(this->_function) {
-                                this->_pipelineState = [this->_device newComputePipelineStateWithFunction:this->_function error:&error];
-                            }
-                            
-                            if(error==nil) this->_init = true;
-                        }
-                        
-                        
-                        if(this->_init&&this->_useArgumentEncoder) {
-                            
+                    NSError *error = nil;
+                    this->_library = [this->_device newLibraryWithData:metallib error:&error];
+                    
+                    if(error==nil&&this->_library) {
+                        if(this->setupPipelineState()&&this->_useArgumentEncoder) {
+                            this->_init = true;
                             this->setupArgumentEncoderWithBuffer();
-                            
-                        }
-                        else {
-                            this->_argumentEncoder = nil;
                         }
                     }
-                    
-                    
                 }
-                
-                
             }
-            
         }
-    
     
         HydraComputeShader(int w,int h,NSString *filename=@"default.metallib", NSString *identifier=nil) : ComputeShaderBase(w,h) {
             
@@ -242,7 +225,7 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
             NSString *metallib = nil;
             
             if(FileManager::extension(filename,@"metallib")) {
-                metallib = filename;//FileManager::path(filename,identifier);
+                metallib = filename;
             }
             else if(FileManager::extension(filename,@"json")) {
                 
@@ -263,13 +246,7 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
                                 [this->_uniformsKey addObject:key];
                             }
                                                         
-                            this->_uniformsKey = (NSMutableArray *)[(NSArray *)this->_uniformsKey sortedArrayUsingComparator:^NSComparisonResult(NSString *s1,NSString *s2) {
-                                int n1 = [[s1 componentsSeparatedByString:@"_"][1] intValue];
-                                int n2 = [[s2 componentsSeparatedByString:@"_"][1] intValue];
-                                if(n1<n2) return (NSComparisonResult)NSOrderedAscending;
-                                else if(n1>n2) return (NSComparisonResult)NSOrderedDescending;
-                                else return (NSComparisonResult)NSOrderedSame;
-                            }];
+                            this->sortUniformsKey();
                             
                         }
                     }
@@ -289,17 +266,14 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
                 }
                 
                 if(ComputeShaderBase::setup(metallib,identifier)&&this->_useArgumentEncoder) {
-                    
                     this->setupArgumentEncoderWithBuffer();
-                    
-                }
-                else {
-                    this->_argumentEncoder = nil;
                 }
             }
         }
     
         ~HydraComputeShader() {
+            [this->_uniforms removeAllObjects];
+            this->_uniforms = nil;
             this->_uniformsKey = nil;
             this->_uniformsValue = nil;
         }

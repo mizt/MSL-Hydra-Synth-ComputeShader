@@ -56,6 +56,15 @@ class ComputeShaderBase {
                 this->_arguments[k] = nil;
             }
         }
+    
+        bool setupPipelineState(NSString *func=@"processimage") {
+            NSError *error = nil;
+            this->_function = [this->_library newFunctionWithName:func];
+            if(this->_function) {
+                this->_pipelineState = [this->_device newComputePipelineStateWithFunction:this->_function error:&error];
+            }
+            return (error==nil)?true:false;
+        }
            
         bool setup(NSString *filename=@"default.metallib", NSString *identifier=nil, NSString *func=@"processimage") {
             
@@ -86,14 +95,8 @@ class ComputeShaderBase {
             if(metallib) {
                 NSError *error = nil;
                 this->_library = [this->_device newLibraryWithFile:metallib error:&error];
-
-                if(this->_library) {
-                    this->_function = [this->_library newFunctionWithName:func];
-                    if(this->_function) {
-                        this->_pipelineState = [this->_device newComputePipelineStateWithFunction:this->_function error:&error];
-                    }
-                    
-                    if(error==nil) this->_init = true;
+                if(error==nil&&this->_library) {
+                    if(this->setupPipelineState(func)) this->_init = true;
                 }
             }
          
