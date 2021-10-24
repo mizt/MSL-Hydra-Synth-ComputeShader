@@ -19,26 +19,26 @@ namespace stb_image {
 
 namespace FileManager {
 
-        NSString *removePlatform(NSString *str) {            
-            NSString *extension = [NSString stringWithFormat:@".%@",[str pathExtension]];
-            return FileManager::replace(str,@[
-                [NSString stringWithFormat:@"-macosx%@",extension],
-                [NSString stringWithFormat:@"-iphoneos%@",extension],
-                [NSString stringWithFormat:@"-iphonesimulator%@",extension]],
-                extension);
-        }
+    NSString *removePlatform(NSString *str) {
+        NSString *extension = [NSString stringWithFormat:@".%@",[str pathExtension]];
+        return FileManager::replace(str,@[
+            [NSString stringWithFormat:@"-macosx%@",extension],
+            [NSString stringWithFormat:@"-iphoneos%@",extension],
+            [NSString stringWithFormat:@"-iphonesimulator%@",extension]],
+            extension);
+    }
 
-        NSString *addPlatform(NSString *str) {
-            NSString *extension = [NSString stringWithFormat:@".%@",[str pathExtension]];
-    #if TARGET_OS_OSX
-            return FileManager::replace(FileManager::removePlatform(str),extension,[NSString stringWithFormat:@"-macosx%@",extension]);
-    #elif TARGET_OS_SIMULATOR
-            return FileManager::replace(FileManager::removePlatform(str),extension,[NSString stringWithFormat:@"-iphonesimulator%@",extension]);
-    #elif TARGET_OS_IPHONE
-            return FileManager::replace(FileManager::removePlatform(str),extension,[NSString stringWithFormat:@"-iphoneos%@",extension]);
-    #else
-            return nil;
-    #endif
+    NSString *addPlatform(NSString *str) {
+        NSString *extension = [NSString stringWithFormat:@".%@",[str pathExtension]];
+#if TARGET_OS_OSX
+        return FileManager::replace(FileManager::removePlatform(str),extension,[NSString stringWithFormat:@"-macosx%@",extension]);
+#elif TARGET_OS_SIMULATOR
+        return FileManager::replace(FileManager::removePlatform(str),extension,[NSString stringWithFormat:@"-iphonesimulator%@",extension]);
+#elif TARGET_OS_IPHONE
+        return FileManager::replace(FileManager::removePlatform(str),extension,[NSString stringWithFormat:@"-iphoneos%@",extension]);
+#else
+        return nil;
+#endif
     }
 
 };
