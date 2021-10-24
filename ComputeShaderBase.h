@@ -3,12 +3,10 @@
 template <typename T>
 class ComputeShaderBase {
     
-    private:
+    protected:
         
         bool _init = false;
     
-    protected:
-
         id<MTLDevice> _device = MTLCreateSystemDefaultDevice();
         id<MTLFunction> _function = nil;
         id<MTLComputePipelineState> _pipelineState = nil;

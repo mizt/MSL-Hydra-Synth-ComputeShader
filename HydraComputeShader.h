@@ -25,9 +25,65 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
     
         double startTime = CFAbsoluteTimeGetCurrent();
     
+        NSMutableDictionary *_uniforms = [NSMutableDictionary dictionary];
+    
         std::vector<Hydra::UniformType> _uniformsType;
         NSMutableArray *_uniformsKey = [NSMutableArray array];
         NSMutableArray *_uniformsValue = [NSMutableArray array];
+    
+    
+        void setupArgumentEncoderWithBuffer() {
+            
+            this->_argumentEncoder = [this->_function newArgumentEncoderWithBufferIndex:0];
+            this->_argumentEncoderBuffer = MTLUtils::newBuffer(this->_device,sizeof(float)*[this->_argumentEncoder encodedLength]);
+            [this->_argumentEncoder setArgumentBuffer:this->_argumentEncoderBuffer offset:0];
+            
+            
+            this->_arguments.push_back(MTLUtils::newBuffer(this->_device,sizeof(float)));
+            this->set(this->_arguments[HYDRA_UNIFORM_TIME],0);
+            [this->_argumentEncoder setBuffer:this->_arguments[HYDRA_UNIFORM_TIME] offset:0 atIndex:0];
+            
+            this->_arguments.push_back(MTLUtils::newBuffer(this->_device,sizeof(float)*2));
+            this->set(this->_arguments[HYDRA_UNIFORM_RESOLUTION],this->_width,this->_height);
+            [this->_argumentEncoder setBuffer:this->_arguments[HYDRA_UNIFORM_RESOLUTION] offset:0 atIndex:1];
+
+            this->_arguments.push_back(MTLUtils::newBuffer(this->_device,sizeof(float)*2));
+            this->set(this->_arguments[HYDRA_UNIFORM_MOUSE],0,0);
+            [this->_argumentEncoder setBuffer:this->_arguments[HYDRA_UNIFORM_MOUSE] offset:0 atIndex:2];
+            
+            for(int k=0; k<[this->_uniformsKey count]; k++) {
+                
+                if([this->_uniformsValue count]<=k) { // add
+                    
+                    [this->_uniformsValue addObject:this->_uniforms[this->_uniformsKey[k]]];
+                    this->_arguments.push_back(MTLUtils::newBuffer(this->_device,sizeof(float)));
+                    [this->_argumentEncoder setBuffer:this->_arguments[HYDRA_OFFSET_UNIFORM+k] offset:0 atIndex:HYDRA_OFFSET_UNIFORM+k];
+
+                }
+                else { // overwrite
+                    this->_uniformsValue[k] = this->_uniforms[this->_uniformsKey[k]];
+                }
+            }
+                                
+            for(int k=0; k<[this->_uniformsKey count]; k++) {
+                
+                Hydra::UniformType type = Hydra::UniformType::FloatType;
+                
+                if([NSStringFromClass([_uniformsValue[k] class]) compare:@"__NSCFString"]==NSOrderedSame) {
+                    type = Hydra::UniformType::FunctionType;
+                }
+                else {
+                    this->set(this->_arguments[HYDRA_OFFSET_UNIFORM+k],[this->_uniformsValue[k] floatValue]);
+                }
+                
+                if(this->_uniformsType.size()<=k) { // add
+                    this->_uniformsType.push_back(type);
+                }
+                else { // overwrite
+                    this->_uniformsType[k] = type;
+                }
+            }
+        }
         
     public:
     
@@ -105,6 +161,73 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
             }
         }
         
+        HydraComputeShader(int w,int h, dispatch_data_t metallib, NSDictionary *json) : ComputeShaderBase(w,h) {
+        
+            if(Hydra::jscontext==nil) {
+                Hydra::jscontext = [JSContext new];
+            }
+
+            this->_useArgumentEncoder = true;
+
+            this->_buffer.push_back(new MTLReadPixels<unsigned int>(w,h));
+            
+            if(json) {
+                     
+                for(NSString *key in [json[@"uniforms"] keyEnumerator]) {
+                    [this->_uniforms setObject:json[@"uniforms"][key] forKey:key];
+                    [this->_uniformsKey addObject:key];
+                }
+                                            
+                this->_uniformsKey = (NSMutableArray *)[(NSArray *)this->_uniformsKey sortedArrayUsingComparator:^NSComparisonResult(NSString *s1,NSString *s2) {
+                    int n1 = [[s1 componentsSeparatedByString:@"_"][1] intValue];
+                    int n2 = [[s2 componentsSeparatedByString:@"_"][1] intValue];
+                    if(n1<n2) return (NSComparisonResult)NSOrderedAscending;
+                    else if(n1>n2) return (NSComparisonResult)NSOrderedDescending;
+                    else return (NSComparisonResult)NSOrderedSame;
+                }];
+                
+                if(metallib) {
+                
+                    MTLTextureDescriptor *RGBA8Unorm = MTLUtils::descriptor(MTLPixelFormatRGBA8Unorm,w,h);
+                    RGBA8Unorm.usage = MTLTextureUsageShaderWrite|MTLTextureUsageShaderRead;
+
+                    for(int k=0; k<(HYDRA_OUT+HYDRA_IN); k++) {
+                        this->_texture.push_back([this->_device newTextureWithDescriptor:RGBA8Unorm]);
+                    }
+                    
+                    if(this->_device) {
+                        NSError *error = nil;
+                        this->_library = [this->_device newLibraryWithData:metallib error:&error];
+
+                        if(error==nil&&this->_library) {
+                            this->_function = [this->_library newFunctionWithName:@"processimage"];
+                            if(this->_function) {
+                                this->_pipelineState = [this->_device newComputePipelineStateWithFunction:this->_function error:&error];
+                            }
+                            
+                            if(error==nil) this->_init = true;
+                        }
+                        
+                        
+                        if(this->_init&&this->_useArgumentEncoder) {
+                            
+                            this->setupArgumentEncoderWithBuffer();
+                            
+                        }
+                        else {
+                            this->_argumentEncoder = nil;
+                        }
+                    }
+                    
+                    
+                }
+                
+                
+            }
+            
+        }
+    
+    
         HydraComputeShader(int w,int h,NSString *filename=@"default.metallib", NSString *identifier=nil) : ComputeShaderBase(w,h) {
             
             if(Hydra::jscontext==nil) {
@@ -135,10 +258,11 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
                                 metallib = json[@"metallib"];
                             }
                             
-                            for(id key in [json[@"uniforms"] keyEnumerator]) {
+                            for(NSString *key in [json[@"uniforms"] keyEnumerator]) {
+                                [this->_uniforms setObject:json[@"uniforms"][key] forKey:key];
                                 [this->_uniformsKey addObject:key];
                             }
-                            
+                                                        
                             this->_uniformsKey = (NSMutableArray *)[(NSArray *)this->_uniformsKey sortedArrayUsingComparator:^NSComparisonResult(NSString *s1,NSString *s2) {
                                 int n1 = [[s1 componentsSeparatedByString:@"_"][1] intValue];
                                 int n2 = [[s2 componentsSeparatedByString:@"_"][1] intValue];
@@ -166,55 +290,8 @@ class HydraComputeShader : public ComputeShaderBase<unsigned int> {
                 
                 if(ComputeShaderBase::setup(metallib,identifier)&&this->_useArgumentEncoder) {
                     
-                    this->_argumentEncoder = [this->_function newArgumentEncoderWithBufferIndex:0];
-                    this->_argumentEncoderBuffer = MTLUtils::newBuffer(this->_device,sizeof(float)*[this->_argumentEncoder encodedLength]);
-                    [this->_argumentEncoder setArgumentBuffer:this->_argumentEncoderBuffer offset:0];
+                    this->setupArgumentEncoderWithBuffer();
                     
-                    
-                    this->_arguments.push_back(MTLUtils::newBuffer(this->_device,sizeof(float)));
-                    this->set(this->_arguments[HYDRA_UNIFORM_TIME],0);
-                    [this->_argumentEncoder setBuffer:this->_arguments[HYDRA_UNIFORM_TIME] offset:0 atIndex:0];
-                    
-                    this->_arguments.push_back(MTLUtils::newBuffer(this->_device,sizeof(float)*2));
-                    this->set(this->_arguments[HYDRA_UNIFORM_RESOLUTION],w,h);
-                    [this->_argumentEncoder setBuffer:this->_arguments[HYDRA_UNIFORM_RESOLUTION] offset:0 atIndex:1];
-
-                    this->_arguments.push_back(MTLUtils::newBuffer(this->_device,sizeof(float)*2));
-                    this->set(this->_arguments[HYDRA_UNIFORM_MOUSE],0,0);
-                    [this->_argumentEncoder setBuffer:this->_arguments[HYDRA_UNIFORM_MOUSE] offset:0 atIndex:2];
-                    
-                    for(int k=0; k<[this->_uniformsKey count]; k++) {
-                        
-                        if([this->_uniformsValue count]<=k) { // add
-                            
-                            [this->_uniformsValue addObject:json[@"uniforms"][this->_uniformsKey[k]]];
-                            this->_arguments.push_back(MTLUtils::newBuffer(this->_device,sizeof(float)));
-                            [this->_argumentEncoder setBuffer:this->_arguments[HYDRA_OFFSET_UNIFORM+k] offset:0 atIndex:HYDRA_OFFSET_UNIFORM+k];
-
-                        }
-                        else { // overwrite
-                            this->_uniformsValue[k] = json[@"uniforms"][this->_uniformsKey[k]];
-                        }
-                    }
-                                        
-                    for(int k=0; k<[this->_uniformsKey count]; k++) {
-                        
-                        Hydra::UniformType type = Hydra::UniformType::FloatType;
-                        
-                        if([NSStringFromClass([_uniformsValue[k] class]) compare:@"__NSCFString"]==NSOrderedSame) {
-                            type = Hydra::UniformType::FunctionType;
-                        }
-                        else {
-                            this->set(this->_arguments[HYDRA_OFFSET_UNIFORM+k],[this->_uniformsValue[k] floatValue]);
-                        }
-                        
-                        if(this->_uniformsType.size()<=k) { // add
-                            this->_uniformsType.push_back(type);
-                        }
-                        else { // overwrite
-                            this->_uniformsType[k] = type;
-                        }
-                    }
                 }
                 else {
                     this->_argumentEncoder = nil;
