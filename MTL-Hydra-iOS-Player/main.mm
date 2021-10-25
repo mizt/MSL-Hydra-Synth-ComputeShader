@@ -8,6 +8,33 @@
 #import <vector>
 
 #import "FileManager.h"
+
+namespace FileManager {
+
+    NSString *removePlatform(NSString *str) {
+        NSString *extension = [NSString stringWithFormat:@".%@",[str pathExtension]];
+        return FileManager::replace(str,@[
+            [NSString stringWithFormat:@"-macosx%@",extension],
+            [NSString stringWithFormat:@"-iphoneos%@",extension],
+            [NSString stringWithFormat:@"-iphonesimulator%@",extension]],
+            extension);
+    }
+
+    NSString *addPlatform(NSString *str) {
+        NSString *extension = [NSString stringWithFormat:@".%@",[str pathExtension]];
+#if TARGET_OS_OSX
+        return FileManager::replace(FileManager::removePlatform(str),extension,[NSString stringWithFormat:@"-macosx%@",extension]);
+#elif TARGET_OS_SIMULATOR
+        return FileManager::replace(FileManager::removePlatform(str),extension,[NSString stringWithFormat:@"-iphonesimulator%@",extension]);
+#elif TARGET_OS_IPHONE
+        return FileManager::replace(FileManager::removePlatform(str),extension,[NSString stringWithFormat:@"-iphoneos%@",extension]);
+#else
+        return nil;
+#endif
+    }
+
+};
+
 #import "MTLUtils.h"
 #import "MTLReadPixels.h"
 #import "PixelBuffer.h"
@@ -27,6 +54,20 @@ class App {
         MetalLayer<Plane> *_layer;
         HydraComputeShader *_hydra = nullptr;
         dispatch_source_t _timer;
+    
+        bool _lock = false;
+    
+        NSString *baseURL = @"https://raw.githubusercontent.com/mizt/MSL-Hydra-Synth-ComputeShader/master";
+        
+        void load(NSString *filename, void (^callback)(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error)) {
+            NSURL *json = [NSURL URLWithString:[NSString stringWithFormat:@"%@/%@",baseURL,filename]];
+            NSURLRequest *request = [NSURLRequest requestWithURL:json cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10];
+            NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
+            NSURLSession *session = [NSURLSession sessionWithConfiguration:configuration];
+            NSURLSessionDataTask *task = [session dataTaskWithRequest:request completionHandler:callback];
+            [task resume];
+        }
+        
         
     public:
     
@@ -46,17 +87,66 @@ class App {
                 dispatch_source_set_timer(this->_timer,dispatch_time(0,0),(1.0/60.0)*1000000000,0);
                 dispatch_source_set_event_handler(this->_timer,^{
                     @autoreleasepool {
-                        [this->_layer->texture() replaceRegion:MTLRegionMake2D(0,0,w,h) mipmapLevel:0 withBytes:this->_hydra->exec() bytesPerRow:w<<2];
-                        this->_layer->update(^(id<MTLCommandBuffer> commandBuffer){
-                            this->_layer->cleanup();
-                            static dispatch_once_t oncePredicate;
-                            dispatch_once(&oncePredicate,^{
-                                dispatch_async(dispatch_get_main_queue(),^{
-                                    [MetalUIWindow::$()->view() addSubview:this->_view];
-                                    MetalUIWindow::$()->appear();
+                        
+                        if(!this->_lock) {
+                            [this->_layer->texture() replaceRegion:MTLRegionMake2D(0,0,w,h) mipmapLevel:0 withBytes:this->_hydra->exec() bytesPerRow:w<<2];
+                            this->_layer->update(^(id<MTLCommandBuffer> commandBuffer){
+                                this->_layer->cleanup();
+                                static dispatch_once_t oncePredicate;
+                                dispatch_once(&oncePredicate,^{
+                                    dispatch_async(dispatch_get_main_queue(),^{
+                                        
+                                        [MetalUIWindow::$()->viewController() callback:^(){
+                                            @autoreleasepool {
+                                                this->load(@"hydra.json",^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error){
+                                                    if(response&&!error) {
+                                                        NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:nil];
+                                                        if(json&&json[@"metallib"]) {
+                                                            
+                                                            NSString *filename = FileManager::addPlatform(json[@"metallib"]);
+                                                            NSLog(@"%@",filename);
+                                                            
+                                                            if(filename) {
+                                                                
+
+                                                                this->load(filename,^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+                                                                    if(response&&!error) {
+                                                                        
+                                                                        @autoreleasepool {
+                                                                                         
+                                                                            NSLog(@"reloadShader");
+                                                                            
+                                                                            dispatch_data_t metallib = dispatch_data_create(data.bytes,data.length,DISPATCH_TARGET_QUEUE_DEFAULT,DISPATCH_DATA_DESTRUCTOR_DEFAULT);
+                                                                            
+                                                                            if(metallib&&json) {
+                                                                                
+                                                                                this->_lock = true;
+
+                                                                                this->_hydra->reloadShader(metallib,json);
+                                                                                
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                    
+                                                                    this->_lock = false;
+                                                                    
+                                                                });
+                                                            }
+                                                        }
+                                                    }
+                                                });
+                                            }
+                                            
+                                        }];
+                                        
+                                        [MetalUIWindow::$()->view() addSubview:this->_view];
+                                        MetalUIWindow::$()->appear();
+                                    });
                                 });
                             });
-                        });
+                        }
+                        
+                        
                     }
                 });
                 if(this->_timer) dispatch_resume(this->_timer);
